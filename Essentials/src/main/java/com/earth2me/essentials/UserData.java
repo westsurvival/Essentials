@@ -1,14 +1,12 @@
 package com.earth2me.essentials;
 
-import com.earth2me.essentials.config.ConfigurateUtil;
-import com.earth2me.essentials.config.EssentialsUserConfiguration;
 import com.earth2me.essentials.config.entities.CommandCooldown;
 import com.earth2me.essentials.config.entities.LazyLocation;
 import com.earth2me.essentials.config.holders.UserConfigHolder;
-import com.earth2me.essentials.userstorage.ModernUserMap;
+import com.earth2me.essentials.config.mongo.EssentialsUserDocument;
+import com.earth2me.essentials.config.mongo.MongoConfigStorage;
 import com.earth2me.essentials.utils.NumberUtil;
 import com.earth2me.essentials.utils.StringUtil;
-import com.google.common.base.Charsets;
 import net.ess3.api.IEssentials;
 import net.ess3.api.MaxMoneyException;
 import net.essentialsx.api.v2.services.mail.MailMessage;
@@ -17,26 +15,25 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.io.File;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
-import java.util.logging.Level;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Date;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 import static com.earth2me.essentials.I18n.tl;
 
 public abstract class UserData extends PlayerExtension implements IConf {
     protected final transient IEssentials ess;
-    private final EssentialsUserConfiguration config;
+    private final MongoConfigStorage storage = MongoConfigStorage.INSTANCE;
+    private EssentialsUserDocument document;
     private UserConfigHolder holder;
     private BigDecimal money;
 
@@ -47,46 +44,38 @@ public abstract class UserData extends PlayerExtension implements IConf {
         if (!folder.exists() && !folder.mkdirs()) {
             throw new RuntimeException("Unable to create userdata folder!");
         }
+        this.document = storage.loadUser(base.getUniqueId());
 
-        config = new EssentialsUserConfiguration(base.getName(), base.getUniqueId(), new File(folder, base.getUniqueId() + ".yml"));
-        config.setSaveHook(() -> {
-            config.setRootHolder(UserConfigHolder.class, holder);
-        });
         reloadConfig();
 
-        if (config.getUsername() == null) {
-            config.setUsername(getLastAccountName());
+        if (document.getName() == null) {
+            document.setName(getLastAccountName());
         }
     }
 
     public final void reset() {
-        config.blockingSave();
-        if (!config.getFile().delete()) {
-            ess.getLogger().warning("Unable to delete data file for " + config.getFile().getName());
+        /*storage.blockingSave();
+        if (!storage.getFile().delete()) {
+            ess.getLogger().warning("Unable to delete data file for " + storage.getFile().getName());
         }
-        if (config.getUsername() != null) {
+        if (storage.getUsername() != null) {
             final ModernUserMap users = (ModernUserMap) ess.getUsers();
-            users.invalidate(config.getUuid());
+            users.invalidate(storage.getUuid());
             if (isNPC()) {
-                final String name = ess.getSettings().isSafeUsermap() ? StringUtil.safeString(config.getUsername()) : config.getUsername();
+                final String name = ess.getSettings().isSafeUsermap() ? StringUtil.safeString(storage.getUsername()) : storage.getUsername();
                 users.invalidate(UUID.nameUUIDFromBytes(("NPC:" + name).getBytes(Charsets.UTF_8)));
             }
-        }
+        }*/
     }
 
     public final void cleanup() {
-        config.blockingSave();
+        storage.saveUser(document);
     }
 
     @Override
     public final void reloadConfig() {
-        config.load();
-        try {
-            holder = config.getRootNode().get(UserConfigHolder.class);
-        } catch (SerializationException e) {
-            ess.getLogger().log(Level.SEVERE, "Error while reading user config: " + config.getFile().getName(), e);
-            throw new RuntimeException(e);
-        }
+        this.document = storage.loadUser(document.getUUID());
+        this.holder = document.getHolder();
         money = _getMoney();
     }
 
@@ -183,7 +172,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
         //Invalid names will corrupt the yaml
         name = StringUtil.safeString(name);
         holder.homes().put(name, LazyLocation.fromLocation(loc));
-        config.save();
+        storage.saveUser(document);
     }
 
     public void delHome(final String name) throws Exception {
@@ -193,7 +182,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
         }
         if (holder.homes().containsKey(search)) {
             holder.homes().remove(search);
-            config.save();
+            storage.saveUser(document);
         } else {
             throw new Exception(tl("invalidHome", search));
         }
@@ -203,7 +192,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
         final LazyLocation location = holder.homes().remove(name);
         if (location != null) {
             holder.homes().put(StringUtil.safeString(newName), location);
-            config.save();
+            storage.saveUser(document);
         } else {
             throw new Exception(tl("invalidHome", name));
         }
@@ -223,7 +212,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setNickname(final String nick) {
         holder.nickname(nick);
-        config.save();
+        storage.saveUser(document);
     }
 
     public Set<Material> getUnlimited() {
@@ -243,13 +232,13 @@ public abstract class UserData extends PlayerExtension implements IConf {
         }
 
         if (wasUpdated) {
-            config.save();
+            storage.saveUser(document);
         }
     }
 
     public void clearAllPowertools() {
         holder.powertools().clear();
-        config.save();
+        storage.saveUser(document);
     }
 
     public List<String> getPowertool(final ItemStack stack) {
@@ -266,7 +255,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
         } else {
             holder.powertools().put(stack.getType().name().toLowerCase(Locale.ENGLISH), commandList);
         }
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean hasPowerTools() {
@@ -283,7 +272,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
             return;
         }
         holder.lastLocation(loc);
-        config.save();
+        storage.saveUser(document);
     }
 
     public Location getLogoutLocation() {
@@ -296,7 +285,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
             return;
         }
         holder.logoutLocation(loc);
-        config.save();
+        storage.saveUser(document);
     }
 
     public long getLastTeleportTimestamp() {
@@ -305,7 +294,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setLastTeleportTimestamp(final long time) {
         holder.timestamps().lastTeleport(time);
-        config.save();
+        storage.saveUser(document);
     }
 
     public long getLastHealTimestamp() {
@@ -314,7 +303,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setLastHealTimestamp(final long time) {
         holder.timestamps().lastHeal(time);
-        config.save();
+        storage.saveUser(document);
     }
 
     public String getJail() {
@@ -323,7 +312,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setJail(final String jail) {
         holder.jail(jail);
-        config.save();
+        storage.saveUser(document);
     }
 
     /**
@@ -379,7 +368,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setMailList(ArrayList<MailMessage> messages) {
         holder.mail(messages);
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean isTeleportEnabled() {
@@ -388,7 +377,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setTeleportEnabled(final boolean set) {
         holder.teleportEnabled(set);
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean isAutoTeleportEnabled() {
@@ -397,7 +386,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setAutoTeleportEnabled(final boolean set) {
         holder.teleportAuto(set);
-        config.save();
+        storage.saveUser(document);
     }
 
     @Deprecated
@@ -415,7 +404,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setIgnoredPlayerUUIDs(final List<UUID> players) {
         holder.ignore(players);
-        config.save();
+        storage.saveUser(document);
     }
 
     @Deprecated
@@ -444,7 +433,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
         } else {
             holder.ignore().remove(uuid);
         }
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean isGodModeEnabled() {
@@ -453,7 +442,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setGodModeEnabled(final boolean set) {
         holder.godMode(set);
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean getMuted() {
@@ -466,7 +455,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setMuted(final boolean set) {
         holder.muted(set);
-        config.save();
+        storage.saveUser(document);
     }
 
     public String getMuteReason() {
@@ -475,7 +464,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setMuteReason(final String reason) {
         holder.muteReason(reason);
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean hasMuteReason() {
@@ -488,7 +477,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setMuteTimeout(final long time) {
         holder.timestamps().mute(time);
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean isJailed() {
@@ -497,7 +486,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setJailed(final boolean set) {
         holder.jailed(set);
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean toggleJailed() {
@@ -512,7 +501,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setJailTimeout(final long time) {
         holder.timestamps().jail(time);
-        config.save();
+        storage.saveUser(document);
     }
 
     public long getOnlineJailedTime() {
@@ -521,7 +510,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setOnlineJailedTime(long onlineJailed) {
         holder.timestamps().onlineJail(onlineJailed);
-        config.save();
+        storage.saveUser(document);
     }
 
     public long getLastLogin() {
@@ -533,7 +522,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
         if (base.getAddress() != null && base.getAddress().getAddress() != null) {
             holder.ipAddress(base.getAddress().getAddress().getHostAddress());
         }
-        config.save();
+        storage.saveUser(document);
     }
 
     public long getLastLogout() {
@@ -542,7 +531,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setLastLogout(final long time) {
         holder.timestamps().logout(time);
-        config.save();
+        storage.saveUser(document);
     }
 
     public String getLastLoginAddress() {
@@ -555,7 +544,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void _setAfk(final boolean set) {
         holder.afk(set);
-        config.save();
+        storage.saveUser(document);
     }
 
     public String getGeoLocation() {
@@ -564,7 +553,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setGeoLocation(final String geolocation) {
         holder.geolocation(geolocation);
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean isSocialSpyEnabled() {
@@ -573,7 +562,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setSocialSpyEnabled(final boolean status) {
         holder.socialSpy(status);
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean isNPC() {
@@ -582,7 +571,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setNPC(final boolean set) {
         holder.npc(set);
-        config.save();
+        storage.saveUser(document);
     }
 
     public String getLastAccountName() {
@@ -596,7 +585,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
             holder.pastUsernames(usernames);
         }
         holder.lastAccountName(lastAccountName);
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean arePowerToolsEnabled() {
@@ -605,7 +594,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setPowerToolsEnabled(final boolean set) {
         holder.powerToolsEnabled(set);
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean togglePowerToolsEnabled() {
@@ -625,7 +614,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
     public void setKitTimestamp(String name, final long time) {
         name = name.replace('.', '_').replace('/', '_').toLowerCase(Locale.ENGLISH);
         holder.timestamps().kits().put(name, time);
-        config.save();
+        storage.saveUser(document);
     }
 
     public List<CommandCooldown> getCooldownsList() {
@@ -724,7 +713,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setBaltopExemptCache(boolean baltopExempt) {
         holder.baltopExempt(baltopExempt);
-        config.save();
+        storage.saveUser(document);
     }
 
     public List<String> getPastUsernames() {
@@ -735,7 +724,7 @@ public abstract class UserData extends PlayerExtension implements IConf {
         final List<String> usernames = holder.pastUsernames();
         usernames.add(0, username);
         holder.pastUsernames(usernames);
-        config.save();
+        storage.saveUser(document);
     }
 
     public boolean isShouting() {
@@ -747,43 +736,22 @@ public abstract class UserData extends PlayerExtension implements IConf {
 
     public void setShouting(boolean shouting) {
         holder.shouting(shouting);
-        config.save();
+        storage.saveUser(document);
     }
 
     public UUID getConfigUUID() {
-        return config.getUuid();
+        return document.getUUID();
     }
 
     public void save() {
-        config.save();
+        storage.saveUser(document);
     }
 
     public void startTransaction() {
-        config.startTransaction();
+        // not a thing
     }
 
     public void stopTransaction() {
-        config.stopTransaction();
-    }
-
-    public void setConfigProperty(String node, Object object) {
-        setConfigPropertyRaw("info." + node, object);
-    }
-
-    public void setConfigPropertyRaw(String node, Object object) {
-        config.setRaw(node, object);
-        config.save();
-    }
-
-    public Set<String> getConfigKeys() {
-        return ConfigurateUtil.getKeys(config.getSection("info"));
-    }
-
-    public Map<String, Object> getConfigMap() {
-        return ConfigurateUtil.getRawMap(config.getSection("info"));
-    }
-
-    public Map<String, Object> getConfigMap(final String node) {
-        return ConfigurateUtil.getRawMap(config.getSection("info." + node));
+        // not a thing
     }
 }

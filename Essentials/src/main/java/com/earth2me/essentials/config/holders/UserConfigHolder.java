@@ -4,6 +4,7 @@ import com.earth2me.essentials.config.annotations.DeleteIfIncomplete;
 import com.earth2me.essentials.config.annotations.DeleteOnEmpty;
 import com.earth2me.essentials.config.entities.CommandCooldown;
 import com.earth2me.essentials.config.entities.LazyLocation;
+import dev.morphia.annotations.Entity;
 import net.essentialsx.api.v2.services.mail.MailMessage;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+@Entity
 @ConfigSerializable
 public class UserConfigHolder {
     private @MonotonicNonNull BigDecimal money;
@@ -363,6 +365,7 @@ public class UserConfigHolder {
     }
 
     @ConfigSerializable
+    @Entity
     public static class Timestamps {
         private long lastteleport = 0L;
 

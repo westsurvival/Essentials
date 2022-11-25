@@ -1,10 +1,14 @@
 package net.essentialsx.api.v2.services.mail;
 
+import dev.morphia.annotations.Entity;
+
 import java.util.UUID;
 
 /**
  * An immutable representation of a message sent as mail.
  */
+
+@Entity
 public class MailMessage {
     private final boolean read;
     private final boolean legacy;

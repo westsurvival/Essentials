@@ -15,13 +15,11 @@ import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.math.BigDecimal;
-
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.ArrayList;
 import java.util.UUID;
+import java.util.Map;
+import java.util.Date;
 import java.util.regex.Pattern;
 
 /**
@@ -197,15 +195,6 @@ public interface IUser {
     boolean isIgnoreMsg();
 
     void setIgnoreMsg(boolean ignoreMsg);
-
-    @Deprecated
-    void setConfigProperty(String node, Object object);
-
-    Set<String> getConfigKeys();
-
-    Map<String, Object> getConfigMap();
-
-    Map<String, Object> getConfigMap(String node);
 
     @Deprecated
     Map<Pattern, Long> getCommandCooldowns();

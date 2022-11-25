@@ -1,5 +1,6 @@
 package com.earth2me.essentials.config.entities;
 
+import dev.morphia.annotations.Entity;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -9,6 +10,8 @@ import java.util.UUID;
 /**
  * Represents a Location but doesn't parse the location until it is requested via {@link LazyLocation#location()}.
  */
+
+@Entity
 public class LazyLocation {
     private String world;
     private String worldName;

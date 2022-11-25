@@ -1,9 +1,11 @@
 package com.earth2me.essentials.config.entities;
 
 import com.earth2me.essentials.config.processors.DeleteIfIncompleteProcessor;
+import dev.morphia.annotations.Entity;
 
 import java.util.regex.Pattern;
 
+@Entity
 public class CommandCooldown implements DeleteIfIncompleteProcessor.IncompleteEntity {
     private Pattern pattern;
 
