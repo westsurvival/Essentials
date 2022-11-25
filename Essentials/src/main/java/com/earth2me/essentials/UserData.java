@@ -5,8 +5,10 @@ import com.earth2me.essentials.config.entities.LazyLocation;
 import com.earth2me.essentials.config.holders.UserConfigHolder;
 import com.earth2me.essentials.config.mongo.EssentialsUserDocument;
 import com.earth2me.essentials.config.mongo.MongoConfigStorage;
+import com.earth2me.essentials.userstorage.ModernUserMap;
 import com.earth2me.essentials.utils.NumberUtil;
 import com.earth2me.essentials.utils.StringUtil;
+import com.google.common.base.Charsets;
 import net.ess3.api.IEssentials;
 import net.ess3.api.MaxMoneyException;
 import net.essentialsx.api.v2.services.mail.MailMessage;
@@ -16,7 +18,6 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-import java.io.File;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.ArrayList;
@@ -40,10 +41,6 @@ public abstract class UserData extends PlayerExtension implements IConf {
     protected UserData(final Player base, final IEssentials ess) {
         super(base);
         this.ess = ess;
-        final File folder = new File(ess.getDataFolder(), "userdata");
-        if (!folder.exists() && !folder.mkdirs()) {
-            throw new RuntimeException("Unable to create userdata folder!");
-        }
         this.document = storage.loadUser(base.getUniqueId());
 
         reloadConfig();
@@ -54,18 +51,16 @@ public abstract class UserData extends PlayerExtension implements IConf {
     }
 
     public final void reset() {
-        /*storage.blockingSave();
-        if (!storage.getFile().delete()) {
-            ess.getLogger().warning("Unable to delete data file for " + storage.getFile().getName());
-        }
-        if (storage.getUsername() != null) {
+        storage.saveUser(document);
+        storage.deleteUser(document);
+        if (document.getName() != null) {
             final ModernUserMap users = (ModernUserMap) ess.getUsers();
-            users.invalidate(storage.getUuid());
+            users.invalidate(document.getUUID());
             if (isNPC()) {
-                final String name = ess.getSettings().isSafeUsermap() ? StringUtil.safeString(storage.getUsername()) : storage.getUsername();
+                final String name = ess.getSettings().isSafeUsermap() ? StringUtil.safeString(document.getName()) : document.getName();
                 users.invalidate(UUID.nameUUIDFromBytes(("NPC:" + name).getBytes(Charsets.UTF_8)));
             }
-        }*/
+        }
     }
 
     public final void cleanup() {

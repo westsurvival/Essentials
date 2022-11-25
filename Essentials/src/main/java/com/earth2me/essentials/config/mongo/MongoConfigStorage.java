@@ -42,4 +42,8 @@ public class MongoConfigStorage {
         }
         return document;
     }
+
+    public void deleteUser(EssentialsUserDocument document) {
+        this.datastore.delete(document);
+    }
 }

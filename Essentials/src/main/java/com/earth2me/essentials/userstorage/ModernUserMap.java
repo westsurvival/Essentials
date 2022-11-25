@@ -9,7 +9,6 @@ import com.google.common.cache.LoadingCache;
 import net.ess3.api.IEssentials;
 import org.bukkit.entity.Player;
 
-import java.io.File;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -154,16 +153,11 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
             return user;
         }
 
-        final File userFile = getUserFile(uuid);
-        if (userFile.exists()) {
-            player = new OfflinePlayer(uuid, ess.getServer());
-            user = new User(player, ess);
-            ((OfflinePlayer) player).setName(user.getLastAccountName());
-            uuidCache.updateCache(uuid, null);
-            return user;
-        }
-
-        return null;
+        player = new OfflinePlayer(uuid, ess.getServer());
+        user = new User(player, ess);
+        ((OfflinePlayer) player).setName(user.getLastAccountName());
+        uuidCache.updateCache(uuid, null);
+        return user;
     }
 
     public void addCachedUser(final User user) {
@@ -186,10 +180,6 @@ public class ModernUserMap extends CacheLoader<UUID, User> implements IUserMap {
     public void invalidate(final UUID uuid) {
         userCache.invalidate(uuid);
         uuidCache.removeCache(uuid);
-    }
-
-    private File getUserFile(final UUID uuid) {
-        return new File(new File(ess.getDataFolder(), "userdata"), uuid.toString() + ".yml");
     }
 
     public void shutdown() {
