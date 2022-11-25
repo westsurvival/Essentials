@@ -20,9 +20,10 @@ public class MongoConfigStorage {
     private final Datastore datastore;
 
     public MongoConfigStorage() {
+        String mongoUrlEnv = System.getenv("MONGO_URL");
         this.mongoClient = MongoClients.create(
                 MongoClientSettings.builder()
-                        .applyConnectionString(new ConnectionString("mongodb://root:docker@localhost:27017"))
+                        .applyConnectionString(new ConnectionString(mongoUrlEnv == null ? "mongodb://localhost:27017" : mongoUrlEnv))
                         .uuidRepresentation(UuidRepresentation.STANDARD)
                         .build()
         );
